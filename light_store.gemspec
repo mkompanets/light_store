@@ -8,9 +8,9 @@ Gem::Specification.new do |spec|
   spec.version       = LightStore::VERSION
   spec.authors       = ["Michael Kompanets"]
   spec.email         = ["mkompanets@gmail.com"]
-  spec.description   = %q{This gem provides a way to store data about an object based}
-  spec.summary       = %q{store attributes based on two identifying keys}
-  spec.homepage      = ""
+  spec.description   = %q{A library for storing data about an object in spreadsheet-like format (array of hashes).}
+  spec.summary       = %q{This library aims to provide an easy way to store report data about objects.  Data that is typically generated with complex queries and methods could be stored in a flat and accessible format.  This is meant to be a general purpose library, but it was created to improve performance of dynamic report generators.  This comes from an idea that each 'row' of report data could be identified by the object id and a secondary id relevant to the report.}
+  spec.homepage      = "https://github.com/mkompanets/light_store"
   spec.license       = "MIT"
 
   spec.files         = `git ls-files`.split($/)
