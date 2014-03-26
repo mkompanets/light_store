@@ -8,9 +8,9 @@ Data format example: `[{account_id: 1, month: '2014-11', revenue: 987.65}, {acco
 
 In the above example `account_id:` is a primary id and `month:` is a secondary id.
 
-## Getting started
-
 ## Installation
+
+This gem relies on redis for storage.
 
 Add this line to your application's Gemfile:
 
@@ -18,15 +18,17 @@ Add this line to your application's Gemfile:
 
 And then execute:
 
-    $ bundle
+    $ bundle install
 
-Or install it yourself as:
+### In rails
 
-    $ gem install light_store
+Add an initializer.
 
-## Usage
-
-TODO: Write usage instructions here
+```ruby
+LightStore.configure do |config|
+  config.redis = Redis.new
+end
+```
 
 ## Contributing
 
