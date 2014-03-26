@@ -65,9 +65,16 @@ Getting all data:
 data = RevenueReport.get_data()
 ```
 
-Getting data for id:
+Getting data for a given id:
 ```ruby
 data = RevenueReport.get_data(2)
+```
+
+Getting data for a given id within range:
+```ruby
+data = RevenueReport.get_sorted_data(2, :month, '2012-02', '2012-04')
+# or
+data = RevenueReport.get_sorted_data(2, :number_of_orders, 20, 30)
 ```
 
 
