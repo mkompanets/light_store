@@ -22,7 +22,7 @@ And then execute:
 
 ### In rails
 
-Add an initializer.
+Add an initializer:
 
 ```ruby
 LightStore.configure do |config|
@@ -30,12 +30,46 @@ LightStore.configure do |config|
 end
 ```
 
-Add a class
+Define a class:
 
 ```ruby
 class RevenueReport < LightStore::Data
+ set_prefix 'revenue_report'
+ set_primary_key :id       # default
+ set_secondary_key :month  # required
+ 
+ set_sortable_field :month, :datetime
+ set_sortable_field :revenue, :float
+ set_sortable_field :number_of_orders, :integer
 end
 ```
+
+Adding data:
+
+```ruby
+data = [
+  {id: 1, month: '2012-01', revenue: 1234.56, number_of_orders: 10},
+  {id: 1, month: '2012-02', revenue: 2345.56, number_of_orders: 20},
+  {id: 1, month: '2012-03', revenue: 3245.56, number_of_orders: 30},
+  {id: 1, month: '2012-04', revenue: 2435.56, number_of_orders: 20},
+  {id: 2, month: '2012-01', revenue: 1234.56, number_of_orders: 10},
+  {id: 2, month: '2012-02', revenue: 2234.56, number_of_orders: 20},
+  {id: 2, month: '2012-03', revenue: 3234.56, number_of_orders: 30},
+  {id: 2, month: '2012-04', revenue: 2234.56, number_of_orders: 20},
+]
+RevenueReport.add_data(data)
+```
+
+Getting all data:
+```ruby
+data = RevenueReport.get_data()
+```
+
+Getting data for id:
+```ruby
+data = RevenueReport.get_data(2)
+```
+
 
 ## Contributing
 
