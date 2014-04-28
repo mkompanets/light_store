@@ -1,6 +1,7 @@
 require "light_store/version"
 require "light_store/configuration"
 require "light_store/class_methods"
+require "light_store/class_accessor_methods"
 
 module LightStore
 
@@ -15,6 +16,7 @@ module LightStore
   class << self
     def included(base)
       base.extend ClassMethods
+      base.extend ClassAccessorMethods
     end
   end
 

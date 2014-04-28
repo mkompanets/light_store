@@ -4,51 +4,6 @@ module LightStore
       LightStore.configuration.redis
     end
 
-    def set_namespace(x)
-      @namespace = x
-    end
-
-    def namespace
-      @namespace ||= 'light_store'
-    end
-
-    def set_prefix(x)
-      @prefix = x
-    end
-
-    def prefix
-      @prefix ||= self.name
-    end
-
-    def set_primary_key(x)
-      @primary_key = x
-    end
-
-    def primary_key
-      @primary_key ||= :id
-    end
-
-    def set_secondary_key(x)
-      @secondary_key = x
-    end
-
-    def secondary_key
-      raise ArgumentError, 'secondary_key must be set' unless @secondary_key
-      @secondary_key
-    end
-
-    def set_sortable_field(field_name, field_type = :integer)
-      allowed_field_types = [:integer, :float, :datetime]
-      raise ArgumentError, 'field_type must be [:integer, :float, :datetime]' unless allowed_field_types.include?(field_type)
-      h = {field_name: field_name, field_type: field_type}
-      @sortable_fields = self.sortable_fields
-      @sortable_fields.push(h) unless @sortable_fields.include?(h)
-    end
-
-    def sortable_fields
-      @sortable_fields ||= []
-    end
-
     def marshal(h)
       Marshal.dump(h)
     end
@@ -57,149 +12,90 @@ module LightStore
       Marshal.load(h)
     end
 
-    def base_key
-      "#{namespace}:#{prefix}"
-    end
-
-    def base_data_key
-      "#{base_key}:data"
-    end
-
-    def base_member_ids_key
-      "#{base_key}:member_ids"
-    end
-
-    def base_sorted_member_ids_key
-      "#{base_key}:sorted_member_ids"
-    end
-
-    def get_primary_id(h)
-      raise ArgumentError, 'primary_id must be set' unless h[primary_key]
-      h[primary_key]
-    end
-
-    def get_secondary_id(h)
-      raise ArgumentError, 'secondary_key must be set' unless h[secondary_key]
-      h[secondary_key]
-    end
-
-    def get_data_row_key(h)
-      "#{base_data_key}:#{get_primary_id(h)}:#{get_secondary_id(h)}"
-    end
-
-    def get_member_id_key(h)
-      "#{base_member_ids_key}:#{get_primary_id(h)}"
-    end
-
-    def get_sorted_member_id_key(_primary_id, _sortable_field)
-      "#{base_sorted_member_ids_key}:#{_primary_id}:#{_sortable_field}"
-    end
-
-    def get_score(value, sortable_field_type)
-      raise ArgumentError, "value for #{sortable_field_type} must be set" unless value
-      case sortable_field_type
-      when :integer
-        value.to_i
-      when :float
-        value.to_f
-      when :datetime
-        if value.is_a? Time
-          value.to_i
-        else
-          Time.parse(value).to_i
-        end
+    def time_to_integer(t)
+      case t
+      when Integer, String
+        t = Time.new(t)
+      when Date, Time
+        # do nothing
       else
-        raise ArgumentError, "score value for #{sortable_field_type} must be in proper format"
+        raise ArgumentError, "#{t.inspect}: #{t.class.name} should be string,integer,date or time"
       end
-    end
-
-    def add_member_id(h)
-      member_id_key = get_member_id_key(h)
-      data_row_key = get_data_row_key(h)
-      datastore.sadd(member_id_key, data_row_key)
-    end
-
-    def add_sorted_member_ids(h)
-      sortable_fields.each do |s|
-        field_name = s[:field_name]
-        field_type = s[:field_type]
-        add_sorted_member_id(h, field_name, field_type)
-      end
-    end
-
-    def add_sorted_member_id(h, field_name, field_type)
-      primary_id = get_primary_id(h)
-      sorted_member_id = get_sorted_member_id_key(primary_id, field_name)
-      data_row_key = get_data_row_key(h)
-      value = h[field_name]
-      score = get_score(value, field_type)
-      datastore.zadd(sorted_member_id, score, data_row_key)
-    end
-
-    def get_member_ids(_primary_key = nil)
-      key = _primary_key ? "#{base_member_ids_key}:#{_primary_key}" : base_member_ids_key
-      member_keys = datastore.keys("#{key}*")
-      member_keys.collect{ |k| datastore.smembers(k) }.flatten
+      Time.parse(t.to_s).to_i
     end
 
     def add_data(data)
-      added_records_count = 0
-      data.each do |h|
-        data_row_key = get_data_row_key(h)
-        marshaled_h = marshal(h)
-        new_member_check = add_member_id(h)
-        if new_member_check
-          datastore.set(data_row_key, marshaled_h)
-          add_sorted_member_ids(h)
-        else
-          old_value = datastore.getset(data_row_key, marshaled_h)
-          if old_value != marshaled_h
-            add_sorted_member_ids(h)
-          end
+      datastore.pipelined do
+        data.each do |h|
+          self.row = h
+          self.persist_row
         end
-        added_records_count += 1 if new_member_check
       end
-      #plural_records = added_records_count == 1 ? "record" : "records"
-      return added_records_count
     end
 
-    def get_data(_primary_key = nil)
-      data_keys = _primary_key ? get_member_ids(_primary_key) : get_member_ids()
-      return [] if data_keys.empty?
-      marshaled_data = datastore.mget(data_keys)
-      unmarshaled_data = marshaled_data.collect{ |d| unmarshal(d) }
+    def persist_row
+      datastore.set(row_key, marshal(self.row))
+      datastore.set(row_reference_key, row_key)
+      _primary_range_key = primary_range_key(self.primary_key)
+      datastore.zadd(_primary_range_key, secondary_key, row_reference_key)
+      datastore.zadd(range_key, secondary_key, row_reference_key)
     end
 
-    def get_sorted_data(_primary_key, _sortable_field, min, max, options = {})
-      grouped_sortable_fields = sortable_fields.group_by { |f| f[:field_name] }
-      raise ArgumentError, "No sortable fields declared" if grouped_sortable_fields.empty?
-      raise ArgumentError, "sortable field '#{_sortable_field}' not declared" unless grouped_sortable_fields.has_key?(_sortable_field)
-      field_type = grouped_sortable_fields[_sortable_field].first[:field_type]
-      min = get_score(min, field_type) unless min == '-inf'
-      max = get_score(max, field_type) unless max == '+inf'
-      sorted_member_id = get_sorted_member_id_key(_primary_key, _sortable_field)
-
-      data_keys = datastore.zrangebyscore(sorted_member_id, min, max, options)
-      marshaled_data = datastore.mget(data_keys)
-      unmarshaled_data = marshaled_data.collect{ |d| unmarshal(d) }
+    def get_data(options = {})
+      reference_keys = []
+      if options.has_key?(:primary_key)
+        # With primary key.
+        if options.has_key?(:date_range)
+          # With date range.
+          reference_keys = get_data_by_range(options[:primary_key], *options[:date_range])
+        else
+          # date_range was not passed in, getting data for the key.
+          reference_keys = get_all_reference_keys(options[:primary_key])
+        end
+      else
+        # Without primary key.
+        if options.has_key?(:date_range)
+          reference_keys = get_data_by_range(nil, *options[:date_range])
+        else
+          # date_range was not passed in, getting all data.
+          reference_keys = get_all_reference_keys()
+        end
+      end
+      return [] if reference_keys.empty?
+      get_data_by_reference_keys(reference_keys)
     end
 
-    def clear_all_data
-      data_keys = datastore.keys("#{base_member_ids_key}*")
-      data_keys = data_keys.concat(datastore.keys("#{base_sorted_member_ids_key}*"))
-      data_keys = data_keys.concat(datastore.keys("#{base_data_key}*"))
-      clear(data_keys)
+    def get_data_by_reference_keys(reference_keys)
+      row_keys = datastore.mget(reference_keys)
+      marshaled_data = datastore.mget(row_keys)
+      marshaled_data.collect{ |d| unmarshal(d) }
+    end
+
+    def get_all_reference_keys(primary_key = nil)
+      key_substring = "#{base_name}:key:#{primary_key}*"
+      datastore.keys(key_substring)
+    end
+
+    def get_data_by_range(_primary_key = nil, start_date, stop_date)
+      min = time_to_integer(start_date)
+      max = time_to_integer(stop_date)
+      if _primary_key.nil?
+        # range_key
+        return datastore.zrangebyscore(range_key, min, max)
+      else
+        # primary_range_key
+        _primary_range_key = primary_range_key(_primary_key)
+        return datastore.zrangebyscore(_primary_range_key, min, max)
+      end
     end
 
     def clear_all
-      all_keys = datastore.keys("#{base_key}*")
+      all_keys = datastore.keys("#{base_name}*")
       clear(all_keys)
     end
 
-    # make private.
     def clear(keys)
       deleted_count = datastore.del(keys) unless keys.empty?
     end
-
   end
 end
