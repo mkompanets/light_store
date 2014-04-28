@@ -2,6 +2,7 @@ module LightStore
   class Configuration
     def initialize
       self.redis = nil
+      self.pipelined = true
     end
 
     def redis
@@ -10,6 +11,14 @@ module LightStore
 
     def redis=(r)
       @redis = r
+    end
+
+    def pipelined?
+      @pipelined
+    end
+
+    def pipelined=(b)
+      @pipelined = b
     end
   end
 end

@@ -35,19 +35,20 @@ describe LightStore::Data do
     after(:each) do
       SomeReport.clear_all
     end
+    # make these tests testier
     describe '#add_data' do
-      # xit 'sets data' do
-      #   SomeReport.add_data(dataset1)
-      # end
-      # xit 'gets data no args' do
-      #   SomeReport.get_data()
-      # end
-      # xit 'gets data with primary key' do
-      #   SomeReport.get_data(primary_key: 2)
-      # end
-      # xit 'gets data with date range' do
-      #   SomeReport.get_data(date_range: [2010, 2013])
-      # end
+      it 'sets data' do
+        SomeReport.add_data(dataset1)
+      end
+      it 'gets data no args' do
+        SomeReport.get_data()
+      end
+      it 'gets data with primary key' do
+        SomeReport.get_data(primary_key: 2)
+      end
+      it 'gets data with date range' do
+        SomeReport.get_data(date_range: [2000, '2013'])
+      end
       it 'gets data with primary key and date range' do
         SomeReport.get_data(primary_key: 1, date_range: [Time.new(2001), Time.new(2013)])
       end

@@ -25,11 +25,18 @@ module LightStore
     end
 
     def add_data(data)
-      datastore.pipelined do
+      add_data_block = proc {
         data.each do |h|
           self.row = h
           self.persist_row
         end
+      }
+      if LightStore.configuration.pipelined?
+        datastore.pipelined do
+          add_data_block.call
+        end
+      else
+        add_data_block.call
       end
     end
 

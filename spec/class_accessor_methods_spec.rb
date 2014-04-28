@@ -68,7 +68,7 @@ describe LightStore::Data do
         TestReport.row_reference_key.should match(":key:#{TestReport.primary_key}:#{TestReport.secondary_key}")
       end
       it 'has primary_range_key' do
-        TestReport.primary_range_key.should match(":primary_range:#{TestReport.primary_key}")
+        TestReport.primary_range_key(TestReport.primary_key).should match(":primary_range:#{TestReport.primary_key}")
       end
       it 'has range_key' do
         TestReport.range_key.should match(":range")
