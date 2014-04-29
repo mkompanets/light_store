@@ -22,6 +22,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "rake"
   spec.add_development_dependency "rspec"
   spec.add_development_dependency "faker"
+  spec.add_development_dependency "mock_redis"
 
   spec.add_dependency "redis"
 end

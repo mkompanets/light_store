@@ -11,6 +11,7 @@ describe LightStore::Data do
   before(:each) do
     LightStore.configure do |config|
       config.redis = Redis.new
+      config.pipelined = false
     end
   end
   context 'for class accessor methods' do
